@@ -16,7 +16,7 @@ os.makedirs(output_dir, exist_ok=True)
 cap = cv2.VideoCapture('video.mp4') # open video file
 total_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) # get total number of frames
 
-frame_skip_threshold = 5  # set this to the number of frames you want to skip
+frame_skip_threshold = 25  # set this to the number of frames you want to skip
 frame_counter = 0
 
 for i in tqdm(range(total_frame_count)): # loop over frames with tqdm
