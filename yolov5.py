@@ -10,7 +10,7 @@ store_only_people = True  # set this flag to False if you want to store images w
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 
 # create directory to store frames if not exist
-output_dir = "assets\output_frames"
+output_dir = "./assets/output_frames"
 os.makedirs(output_dir, exist_ok=True)
 
 cap = cv2.VideoCapture('video.mp4') # open video file
