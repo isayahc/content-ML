@@ -1,6 +1,6 @@
-# !pip install pytube opencv-python face_recognition tqdm insightface onnxruntime-gpu
-# !pip install numpy==1.23 # as per https://github.com/deepinsight/insightface/issues/2251
-
+import os
+import glob
+from tqdm import tqdm
 import urllib.request
 import cv2
 import numpy as np
@@ -9,7 +9,6 @@ import insightface
 import shutil
 from pytube import YouTube
 from tqdm import tqdm
-
 
 def calculate_frame_similarity(frame1, frame2):
     # Calculate the structural similarity index (SSIM) between two frames
@@ -29,40 +28,22 @@ def remove_similar_frames(frames, threshold):
 
     return unique_frames
 
-
-def identify_unique_persons(input_video_path, output_video_path, output_directory, similarity_threshold):
+def identify_unique_persons(input_image_dir, output_directory, similarity_threshold):
     # Load the pre-trained model for face detection
     model_detection = insightface.app.FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
     model_detection.prepare(ctx_id=0, det_size=(640, 640))
 
     # Load the pre-trained model for face recognition
-    model_recognition = insightface.model_zoo.get_model('arcface_r100_v1')
+    # model_recognition = insightface.model_zoo.get_model('arcface_r100_v1')
+    # model_recognition = insightface.model_zoo.get_model('arcface_r100_v1', download=True, )
+    model_recognition = insightface.model_zoo.get_model('/home/isayahc/projects/machine_learning/facial_recognition/deepface_inference/models/antelopev2/glintr100.onnx')
 
     # Load the face recognition model parameters
     model_recognition.prepare(ctx_id=0)
 
-    # Download the input video
-    youtube = YouTube(input_video_path)
-    video = youtube.streams.filter(adaptive=True, file_extension='mp4').first()
-    video.download(output_directory)
-    input_video_file = os.path.join(output_directory, video.default_filename)
-
-    # Open the input video
-    cap = cv2.VideoCapture(input_video_file)
-
-    # Get the video properties
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
     # Create the output directory if it doesn't exist
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
-
-    # Create a VideoWriter object to save the output video
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
     # Initialize variables for tracking unique persons
     unique_persons = {}
@@ -74,12 +55,12 @@ def identify_unique_persons(input_video_path, output_video_path, output_director
     # List to store frames
     frames = []
 
-    for _ in tqdm(range(total_frames), desc='Processing frames', unit='frame'):
-        # Read a frame from the video
-        ret, frame = cap.read()
+    # List of all image files in input directory
+    image_files = glob.glob(os.path.join(input_image_dir, '*'))
 
-        if not ret:
-            break
+    for image_file in tqdm(image_files, desc='Processing images', unit='image'):
+        # Read an image from the directory
+        frame = cv2.imread(image_file)
 
         # Convert the frame to RGB color space
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -96,8 +77,10 @@ def identify_unique_persons(input_video_path, output_video_path, output_director
             face_img = frame_rgb[bbox[1]:bbox[3], bbox[0]:bbox[2]]
 
             # Perform face recognition
-            embeddings = model_recognition.get_embedding(face_img)
-            # embeddings = model_recognition.get(face_img)
+            # embeddings = model_recognition.get_embedding(face_img)
+            embeddings = model_recognition.get(face_img)
+            face_embedding = model.get(detected_face, img)
+
 
             # Check if the face belongs to a known person
             matched = False
@@ -106,7 +89,7 @@ def identify_unique_persons(input_video_path, output_video_path, output_director
                 distance = np.linalg.norm(person_embeddings - embeddings)
 
                 # If the distance is below a threshold, consider it a match
-                if distance < 0.6:
+                if distance < similarity_threshold:
                     matched = True
                     break
 
@@ -134,34 +117,19 @@ def identify_unique_persons(input_video_path, output_video_path, output_director
         frame_path = os.path.join(output_directory, frame_filename)
         cv2.imwrite(frame_path, frame)
 
-    # Write the frames to the output video file
-    for frame in frames:
-        out.write(frame)
-
-    # Release the video capture and writer objects
-    cap.release()
-    out.release()
-
-    # Remove the downloaded input video file
-    os.remove(input_video_file)
-
     # Return the output directory path
     return output_directory
 
-
 # Example usage
-output_directory = "/content/output_frames0"
-input_video_path = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-output_video_path = "/content/output_video.mp4"
+# output_directory = "/content/output_frames0"
+# input_video_path = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+# output_video_path = "/content/output_video.mp4"
+
+input_image_dir = "./assets/output_frames"
+output_directory= "./assets/output_frames0"
+
 similarity_threshold = 0.9
-output_directory = identify_unique_persons(input_video_path, output_video_path, output_directory, similarity_threshold)
+# output_directory = identify_unique_persons(input_video_path, output_video_path, output_directory, similarity_threshold)
 
-# Zip the output directory
-shutil.make_archive(output_directory, 'zip', output_directory)
+output_directory = identify_unique_persons(input_image_dir,output_directory,similarity_threshold)
 
-# Print the output directory path
-print("Output directory path:", output_directory)
-
-# Download the zip file
-# from google.colab import files
-# files.download(output_directory + ".zip")

@@ -1,10 +1,10 @@
 *.pt
 
 
-
-
-
 /runs
 /venv
 /assets
+**/__pycache__
+
 *.mp4
+*.onnx
