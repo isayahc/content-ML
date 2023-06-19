@@ -40,17 +40,10 @@ for i in tqdm(range(total_frame_count)):
                     if len(box) == 4:
                         # Extract ROI
                         roi = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-                        filename = os.path.join(output_dir, f"person_{person_counter}.jpg")
-                        try:
-                            # Save ROI as image
-                            cv2.imwrite(filename, roi)
-                            if os.path.isfile(filename):
-                                print(f'Saved image {filename}')
-                                person_counter += 1
-                            else:
-                                print(f'Failed to save image {filename}')
-                        except Exception as e:
-                            print(f'Error writing file {filename}: {str(e)}')
+                        # Save the ROI directly without storing in filename variable
+                        cv2.imwrite(os.path.join(output_dir, f"person_{person_counter}.jpg"), roi)
+                        print(f'Saved image person_{person_counter}.jpg')
+                        person_counter += 1
             frame_counter = 0
     else:
         print(f'Read invalid frame {i}')
