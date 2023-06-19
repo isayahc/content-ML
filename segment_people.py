@@ -36,17 +36,24 @@ for i in tqdm(range(total_frame_count)):
             results = model(frame)
             person_detections = [x for x in results.xyxy[0] if x[-1] == 0.0]
             if person_detections:
-                for *box, _, _, class_id in person_detections:
-                    if len(box) == 4:
-                        # Extract ROI
-                        roi = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-                        # Save the ROI directly without storing in filename variable
-                        cv2.imwrite(os.path.join(output_dir, f"person_{person_counter}.jpg"), roi)
-                        print(f'Saved image person_{person_counter}.jpg')
-                        person_counter += 1
+                for detection in person_detections:
+                    box = detection[:4] # Extract bounding box coordinates
+                    class_id = detection[-1] # Extract class_id
+
+                    # Convert box values to integer
+                    box = [int(i) for i in box]
+
+                    # Extract ROI
+                    roi = frame[box[1]:box[3], box[0]:box[2]]
+
+                    # Save the ROI
+                    cv2.imwrite(os.path.join(output_dir, f"person_{person_counter}.jpg"), roi)
+                    print(f'Saved image person_{person_counter}.jpg')
+                    person_counter += 1
             frame_counter = 0
     else:
         print(f'Read invalid frame {i}')
         break
+
 
 cap.release()
