@@ -5,23 +5,28 @@ from deepface import DeepFace
 from tqdm import tqdm
 from sklearn.cluster import DBSCAN
 import hdbscan
-from typing import List, Dict
+from typing import List, Dict, Union
 
 os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Set the enforce_detection parameter to False to use the CPU
 
-def get_deepface_embeddings(image_paths: List[str]) -> Dict[int, np.ndarray]:
+def get_deepface_embeddings(image_paths: List[str]) -> Dict[int, Dict[str, Union[np.ndarray, Dict[str, int]]]]:
     """
-    Calculates DeepFace embeddings for all images in the provided list of image paths.
+    Calculates DeepFace embeddings and facial area for all images in the provided list of image paths.
 
     Parameters:
         image_paths (List[str]): A list of image file paths.
 
     Returns:
-        embeddings (Dict[int, np.ndarray]): A dictionary mapping an integer index to each image's DeepFace embedding.
+        embeddings (Dict[int, Dict[str, Union[np.ndarray, Dict[str, int]]]]): 
+            A dictionary mapping an integer index to another dictionary, which contains:
+                - 'embedding': the DeepFace embedding for the image.
+                - 'facial_area': a dictionary with 'x', 'y', 'w', 'h' representing the face's location and dimensions in the image.
     """
     embeddings = {}
     for i, img_path in enumerate(tqdm(image_paths, desc="Calculating embeddings", unit="image")):
-        embeddings[i] = DeepFace.represent(img_path=img_path, model_name='Facenet', enforce_detection=False)
+        result = DeepFace.represent(img_path=img_path, model_name='Facenet', enforce_detection=False)
+        print(f"Type: {type(result)}, Content: {result}")
+        embeddings[i] = result
     return embeddings
 
 def get_clusters(embeddings: Dict[int, np.ndarray], algorithm: str = 'DBSCAN', params: dict = None) -> Dict[int, int]:
@@ -47,8 +52,14 @@ def get_clusters(embeddings: Dict[int, np.ndarray], algorithm: str = 'DBSCAN', p
     else:
         raise ValueError("Invalid algorithm choice. Choose 'DBSCAN' or 'HDBSCAN'.")
 
-    embedding_list = [embedding for embedding in embeddings.values()]
+    # embedding_list = [embedding for embedding in embeddings.values()]
+
+    # Flatten list of embeddings
+    embedding_list = [embedding for sublist in embeddings.values() for embedding in (sublist if isinstance(sublist, list) else [sublist])]
+    embedding_list = [i['embedding'] for i in embedding_list]
+    
     embedding_array = np.vstack(embedding_list)
+    # embedding_array = np.vstack(embedding_list)
     labels = clustering_model.fit_predict(embedding_array)
     
     return {img_idx: cluster_label for img_idx, cluster_label in enumerate(labels)}
