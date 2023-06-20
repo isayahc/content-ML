@@ -10,12 +10,32 @@ from typing import List, Dict
 os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Set the enforce_detection parameter to False to use the CPU
 
 def get_deepface_embeddings(image_paths: List[str]) -> Dict[int, np.ndarray]:
+    """
+    Calculates DeepFace embeddings for all images in the provided list of image paths.
+
+    Parameters:
+        image_paths (List[str]): A list of image file paths.
+
+    Returns:
+        embeddings (Dict[int, np.ndarray]): A dictionary mapping an integer index to each image's DeepFace embedding.
+    """
     embeddings = {}
     for i, img_path in enumerate(tqdm(image_paths, desc="Calculating embeddings", unit="image")):
         embeddings[i] = DeepFace.represent(img_path=img_path, model_name='Facenet', enforce_detection=False)
     return embeddings
 
 def get_clusters(embeddings: Dict[int, np.ndarray], algorithm: str = 'DBSCAN', params: dict = None) -> Dict[int, int]:
+    """
+    Perform clustering on the DeepFace embeddings.
+
+    Parameters:
+        embeddings (Dict[int, np.ndarray]): A dictionary of DeepFace embeddings.
+        algorithm (str): The clustering algorithm to use. Can be 'DBSCAN' or 'HDBSCAN'. Default is 'DBSCAN'.
+        params (dict): The parameters to use for the clustering algorithm.
+
+    Returns:
+        A dictionary mapping each image index to a cluster label.
+    """
     clustering_model = None
     if algorithm == 'DBSCAN':
         eps = params.get('eps', 0.5)
@@ -27,32 +47,36 @@ def get_clusters(embeddings: Dict[int, np.ndarray], algorithm: str = 'DBSCAN', p
     else:
         raise ValueError("Invalid algorithm choice. Choose 'DBSCAN' or 'HDBSCAN'.")
 
-    # Prepare data for clustering
     embedding_list = [embedding for embedding in embeddings.values()]
-    # embedding_array = np.array(embedding_list)
     embedding_array = np.vstack(embedding_list)
     labels = clustering_model.fit_predict(embedding_array)
     
     return {img_idx: cluster_label for img_idx, cluster_label in enumerate(labels)}
 
 def process_directory(input_dir: str, output_dir: str, algorithm: str = 'DBSCAN', params: dict = None):
-    # Get all image paths in the directory
+    """
+    Process a directory of images. This involves calculating DeepFace embeddings for each image, performing clustering,
+    and saving the images in clusters to the output directory.
+
+    Parameters:
+        input_dir (str): The input directory containing images.
+        output_dir (str): The output directory to save the clusters of images.
+        algorithm (str): The clustering algorithm to use. Can be 'DBSCAN' or 'HDBSCAN'. Default is 'DBSCAN'.
+        params (dict): The parameters to use for the clustering algorithm.
+    """
     image_paths = [os.path.join(input_dir, filename) for filename in os.listdir(input_dir) if filename.endswith(".jpg") or filename.endswith(".png")]
-
-    # Calculate embeddings for all images
     embeddings = get_deepface_embeddings(image_paths)
-
-    # Get clusters
     clusters = get_clusters(embeddings, algorithm, params)
 
-    # Save images in clusters
-    common_indices = set(image_paths).intersection(set(clusters.keys()))
-    for img_idx in common_indices:
+    for img_idx in clusters.keys():
         cluster_dir = os.path.join(output_dir, f"person{clusters[img_idx] + 1}")
         os.makedirs(cluster_dir, exist_ok=True)
         shutil.copy(image_paths[img_idx], cluster_dir)
 
 def main():
+    """
+    The main function of the script. It processes a directory of images twice, once with DBSCAN and once with HDBSCAN.
+    """
     input_directory = "/home/isayahc/projects/machine_learning/facial_recognition/deepface_inference/assets/video1"
     output_directory = "/home/isayahc/projects/machine_learning/facial_recognition/deepface_inference/assets/video2"
     process_directory(input_directory, output_directory, 'DBSCAN', params={'eps': 0.3, 'min_samples': 5})
@@ -60,8 +84,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
