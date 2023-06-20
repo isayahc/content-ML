@@ -3,7 +3,8 @@ import cv2
 import torch
 import os
 from tqdm import tqdm
-
+from typing import Dict, List
+import numpy as np
 
 def save_roi_images(model: torch.nn.Module, video_path: str, output_dir: str, frame_skip_threshold: int = 25) -> None:
     """
